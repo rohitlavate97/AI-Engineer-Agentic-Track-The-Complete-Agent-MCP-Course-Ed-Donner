@@ -43,3 +43,574 @@ Clone repo in projects folder --> https:github.com/ed-donner/agents
 Now go to cells below -> Run programs'
 Refer -> agents\guides\09_ai_apis_and_ollama.ipynb
         For downloading ollama --> irm https://ollama.com/install.ps1 | iex
+
+--Day 1:
+--------
+
+Here's the **complete Python program** for the exercise. It makes **3 LLM calls**:
+
+1. Pick a business area suitable for Agentic AI.
+2. Identify a pain point in that business.
+3. Propose an Agentic AI solution.
+
+```python
+from dotenv import load_dotenv
+from openai import OpenAI
+
+# Load environment variables from .env
+load_dotenv(override=True)
+
+# Create OpenAI client
+client = OpenAI()
+
+print("=" * 60)
+print("AGENTIC AI BUSINESS OPPORTUNITY ANALYZER")
+print("=" * 60)
+
+# ----------------------------------------------------
+# STEP 1: Ask LLM to suggest a business area
+# ----------------------------------------------------
+
+messages = [
+    {
+        "role": "user",
+        "content": """
+        Suggest one business industry where Agentic AI could create significant value.
+        Respond with:
+        1. Industry Name
+        2. Why it is promising for Agentic AI
+        
+        Keep the answer concise.
+        """
+    }
+]
+
+response = client.chat.completions.create(
+    model="gpt-4.1-mini",
+    messages=messages
+)
+
+business_idea = response.choices[0].message.content
+
+print("\nBUSINESS OPPORTUNITY")
+print("-" * 40)
+print(business_idea)
+
+# ----------------------------------------------------
+# STEP 2: Ask LLM to identify a pain point
+# ----------------------------------------------------
+
+messages = [
+    {
+        "role": "user",
+        "content": f"""
+        Based on the following business area:
+
+        {business_idea}
+
+        Identify a major pain point or challenge in this industry
+        that could potentially be solved using Agentic AI.
+
+        Explain:
+        1. The pain point
+        2. Why it is difficult today
+
+        Keep it concise.
+        """
+    }
+]
+
+response = client.chat.completions.create(
+    model="gpt-4.1-mini",
+    messages=messages
+)
+
+pain_point = response.choices[0].message.content
+
+print("\nPAIN POINT")
+print("-" * 40)
+print(pain_point)
+
+# ----------------------------------------------------
+# STEP 3: Ask LLM to propose Agentic AI solution
+# ----------------------------------------------------
+
+messages = [
+    {
+        "role": "user",
+        "content": f"""
+        Business Area:
+        {business_idea}
+
+        Pain Point:
+        {pain_point}
+
+        Design an Agentic AI solution.
+
+        Include:
+        1. Solution Name
+        2. How the AI agents work
+        3. Benefits
+        4. Expected Business Impact
+
+        Be practical and business-focused.
+        """
+    }
+]
+
+response = client.chat.completions.create(
+    model="gpt-4.1-mini",
+    messages=messages
+)
+
+agentic_solution = response.choices[0].message.content
+
+print("\nAGENTIC AI SOLUTION")
+print("-" * 40)
+print(agentic_solution)
+
+print("\n" + "=" * 60)
+print("ANALYSIS COMPLETED")
+print("=" * 60)
+```
+
+### Expected Flow
+
+```text
+BUSINESS OPPORTUNITY
+----------------------------------------
+Healthcare Operations
+Agentic AI can automate patient scheduling...
+
+PAIN POINT
+----------------------------------------
+Hospitals struggle with appointment management...
+
+AGENTIC AI SOLUTION
+----------------------------------------
+Solution Name: Smart Hospital Agent
+
+Agent 1: Appointment Agent
+Agent 2: Insurance Agent
+Agent 3: Follow-up Agent
+
+Benefits:
+- Reduced wait times
+- Lower operational cost
+- Better patient satisfaction
+```
+
+Since you already have an Appium/Test Automation background, try changing the first prompt to:
+
+```python
+"Suggest a business area related to Software Testing, QA Automation, HR, or Recruitment where Agentic AI can create value."
+```
+
+That will generate ideas closer to your interests, such as:
+
+* AI Test Case Generation
+* Autonomous Appium Testing Agents
+* AI Recruitment Screening Agents
+* HR Compliance Automation Agents
+* TestRail + Claude + Ollama Agent Systems
+
+--Day 2: Building effective agents: LLM Autonomy and Tool integration explained
+--------
+-What agents actually do?
+ AI agents are programs where LLM output control the workflow.
+ In practice, describes as AI solution, that involves any or all of these:
+ 1. Multiple LLM calls
+ 2. LLMs with ability to use tools
+ 3. An environment, where LLMs interact.
+ 4. A planner to co-ordinate activities
+ 5. Autonomy
+
+ -Agentic Systems: Anthropic distinguishes two types: 
+  Workflows are systems, whrere LLMs , and tools are orchestrated through predefined code paths
+  Agents are systems, where LLMs dynamically direct their own processes and tool usage, maintaining control over how they acomplish task.
+
+  5 Essential LLM workflow design pattern:
+  Your notes appear to be about **Essential LLM Workflow Patterns for Agentic AI Systems**. I can read three patterns:
+
+## 1. Prompt Chaining
+
+```
+Input → LLM1 → Gate → LLM2 → LLM3 → Output
+```
+
+**Purpose:** Break a complex task into smaller sequential tasks.
+
+**Example:**
+
+* Step 1: Generate test scenarios.
+* Step 2: Validate scenarios.
+* Step 3: Generate Appium test cases.
+* Step 4: Review and optimize.
+
+**When to use:**
+
+* Multi-step reasoning
+* Document processing
+* Test case generation pipelines
+
+---
+
+## 2. Routing : Direct an input into a specialized sub-task, ensuring seperation of concerns.
+
+```
+                  → LLM1
+Input → LLM Router → LLM2 → Output
+                  → LLM3
+```
+
+**Purpose:** Send requests to the most appropriate expert agent.
+
+**Example QA Agent System:**
+
+| Request                  | Route To              |
+| ------------------------ | --------------------- |
+| Generate Test Cases      | Test Design Agent     |
+| Analyze Defects          | Defect Analysis Agent |
+| Create Automation Script | Automation Agent      |
+| Create SQL Query         | Database Agent        |
+
+**When to use:**
+
+* Multiple specialized agents
+* Different domains
+* Cost optimization
+
+---
+
+## 3. Parallelization
+
+```
+                    → LLM1
+Input → Coordinator → LLM2 → Aggregator → Output
+                    → LLM3
+```
+
+**Purpose:** Execute multiple tasks simultaneously.
+
+**Example:**
+User Story:
+
+```
+"As a customer I want online payment"
+```
+
+Run in parallel:
+
+* Agent 1 → Functional Test Cases
+* Agent 2 → API Test Cases
+* Agent 3 → Security Test Cases
+
+Aggregator combines results into a final report.
+
+**Benefits:**
+
+* Faster execution
+* Better coverage
+* Independent validation
+
+---
+
+## How These Apply to Your Goal (AI + QA Automation)
+
+### AI Test Case Generator
+
+```
+Requirement
+     |
+     v
+Prompt Chain
+     |
+     v
+Generate Scenarios
+     |
+     v
+Routing
+     |
+     +--> UI Test Agent
+     +--> API Test Agent
+     +--> Security Agent
+     |
+     v
+Parallel Execution
+     |
+     v
+Aggregator
+     |
+     v
+TestRail + Appium Test Cases
+```
+
+This is exactly the architecture you can build using:
+
+* Claude Code
+* OpenAI API
+* Ollama (local models)
+* TestRail
+* Appium Framework
+* MCP Servers
+
+This page contains the next **2 Agentic AI workflow patterns** from Anthropic/OpenAI style agent design.
+
+---
+
+# 4. Orchestrator – Workers Pattern
+
+### Diagram
+
+```text
+Input
+  |
+  v
+Orchestrator
+  |
+  +----> Worker LLM 1
+  +----> Worker LLM 2
+  +----> Worker LLM 3
+  |
+  v
+Synthesizer
+  |
+  v
+Output
+```
+
+### Purpose
+
+The **Orchestrator** dynamically breaks a complex task into smaller subtasks.
+
+Each worker handles a specialized part of the problem.
+
+The **Synthesizer** combines all worker outputs into one final answer.
+
+---
+
+### Example: Test Automation Agent
+
+User Request:
+
+```text
+Generate automation for Login feature
+```
+
+Orchestrator decides:
+
+```text
+Worker 1 -> Analyze requirements
+Worker 2 -> Generate test cases
+Worker 3 -> Generate Appium code
+Worker 4 -> Generate API tests
+```
+
+Synthesizer combines:
+
+```text
+Requirements
++
+Test Cases
++
+Appium Scripts
++
+API Scripts
+=
+Final Report
+```
+
+---
+
+### Why it is powerful
+
+Unlike Routing, where a request goes to one expert, Orchestration can:
+
+* Create tasks dynamically
+* Spawn multiple workers
+* Combine results intelligently
+
+This is the pattern used in many advanced AI agents.
+
+---
+
+# 5. Evaluator – Optimizer Pattern
+
+### Diagram
+
+```text
+Input
+   |
+   v
+Generator LLM
+   |
+   v
+Evaluator LLM
+   |
+   +---- Accept ---> Output
+
+   +---- Reject ---> Feedback
+                     |
+                     v
+                Generator LLM
+```
+
+---
+
+### Purpose
+
+One LLM creates content.
+
+Another LLM reviews it.
+
+If quality is poor, it sends feedback and requests improvements.
+
+This creates a feedback loop.
+
+---
+
+### Example: Test Case Generation
+
+Generator:
+
+```text
+Generate test cases for Login
+```
+
+Output:
+
+```text
+5 test cases
+```
+
+Evaluator checks:
+
+```text
+Coverage?
+Negative scenarios?
+Boundary testing?
+Security testing?
+```
+
+If incomplete:
+
+```text
+Rejected:
+Add security and validation tests
+```
+
+Generator retries.
+
+Evaluator rechecks.
+
+Only approved output is returned.
+
+---
+
+# Complete 5 Core Agentic AI Patterns
+
+### 1. Prompt Chaining
+
+```text
+Input -> Step1 -> Step2 -> Step3 -> Output
+```
+
+Use when:
+
+* Sequential workflows
+* Multi-step reasoning
+
+---
+
+### 2. Routing
+
+```text
+Input -> Router -> Expert Agent
+```
+
+Use when:
+
+* Multiple specialists exist
+
+---
+
+### 3. Parallelization
+
+```text
+Input -> Multiple Agents -> Aggregation
+```
+
+Use when:
+
+* Independent tasks
+* Faster execution needed
+
+---
+
+### 4. Orchestrator-Workers
+
+```text
+Input -> Orchestrator -> Workers -> Synthesizer
+```
+
+Use when:
+
+* Complex dynamic tasks
+* Task decomposition required
+
+---
+
+### 5. Evaluator-Optimizer
+
+```text
+Generate -> Review -> Improve -> Accept
+```
+
+Use when:
+
+* Quality matters
+* Need self-correction
+
+---
+
+## How this maps to your Appium + AI Agent idea
+
+A production-grade AI Test Automation Agent could look like:
+
+```text
+Requirement
+     |
+     v
+Orchestrator
+     |
+     +--> Requirement Analyzer
+     +--> Test Case Generator
+     +--> API Test Generator
+     +--> Appium Script Generator
+     +--> TestRail Updater
+     |
+     v
+Synthesizer
+     |
+     v
+Evaluator Agent
+     |
+     +--> Approve
+     |
+     +--> Reject with feedback
+               |
+               v
+          Regenerate
+```
+
+This architecture is very close to what you could build using:
+
+* Claude Code
+* OpenAI API
+* Ollama
+* TestRail APIs
+* Appium Framework
+* MCP Servers
+
+and would make an excellent portfolio project for your transition from QA Automation Engineer to AI/Java Engineer.
+
