@@ -1,0 +1,45 @@
+This course is for new, python coders -> Refer to guides and projects in repo.
+-Complete LLM Engineering course before this course.
+
+--Setting up full powered AI Environment --> Cursor
+                                              UV package manager.(Replcement for anaconda)
+											  
+API  --> Deepseek instead of OpenAI
+         Gemini free tier
+		 Ollama for zero cost but with trade offs.
+		 
+--Setup for Window:
+-------------------
+only issue is 260 character length and antivirus.
+Clone repo in projects folder --> https:github.com/ed-donner/agents
+-Install cursor
+-Install uv package manager. --> https://docs.astral.sh/uv  -> scroll down and run command
+                             --> uv --version
+-In terminal --> $ cd agents/
+                 agents>uv sync (want to build environment, which is consistent with directory)  --> .venv will be created
+				 to run script --> uv <script_name>   (instead of python <script_name>)
+				 
+- Setup key with OpenAi/ollahma  --> go to https://platform.openai.com/docs/overview  --> get api key (select default project) --> 
+                 OPENAI_API_KEY= 
+                 DEEPSEEK_API_KEY = 
+                 GEMINI_API_KEY = 
+                 GROQ_API_KEY = 
+				 
+--Setup for Mac: create projects dir --> mkdir projects
+----------------
+%xcode-select --install (basic developer tool)
+%git clone git@github.com:ed-donner/agents.git  (also can use https)
+%cd agents
+- Install cursor, install uv --> github.com/astral-sh/uv  -> %curl -LsSf https://astral.sh/uv/install.sh | sh
+ %uv --version
+ %uv sync --> looks for other files, like python version file etc, builds environment.
+-Setup key with OPENAI_API_KEY, DEEPSEEK_API_KEY etc. -> in .env file.
+
+--Building your first agentic ai workflows with OpenAI API:
+----------------------------------------------------------
+-Go to foundations -> 1_Lab1.ipynb -> open this file. --> setup and guides -->for information click on link
+-Top right --> select kernel --> Python environment --> select .venv (always)
+
+Now go to cells below -> Run programs'
+Refer -> agents\guides\09_ai_apis_and_ollama.ipynb
+        For downloading ollama --> irm https://ollama.com/install.ps1 | iex
