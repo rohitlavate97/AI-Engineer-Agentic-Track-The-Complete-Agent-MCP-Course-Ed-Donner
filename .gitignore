@@ -175,14 +175,13 @@ cython_debug/
 
 .DS_Store
 
+# Ignore memory in sidekick and other lab/project databases
+*.db
+*.db-journal
+*.db-shm
+*.db-wal
+*.sqlite
+*.sqlite3
+
 # Ignore Crew engineering team output
 3_crew/engineering_team/output/
-
-# Ignore memory in sidekick
-memory.db-shm
-memory.db-wal
-memory.db
-
-# Ignore Accounts database in capstone project
-6_mcp/accounts.db
-6_mcp/memory/*.db
