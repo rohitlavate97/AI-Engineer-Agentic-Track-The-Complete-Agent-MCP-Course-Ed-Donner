@@ -614,3 +614,255 @@ This architecture is very close to what you could build using:
 
 and would make an excellent portfolio project for your transition from QA Automation Engineer to AI/Java Engineer.
 
+for ollama :
+# 1. Download from ollama.com and install
+# 2. Pull a model
+ollama pull llama3.2
+
+# 3. Make sure it's running (it usually auto-starts)
+ollama serve
+
+import ollama
+print(ollama.list())  # shows all pulled models
+
+Program:
+--------
+import os
+import json
+from dotenv import load_dotenv
+from groq import Groq
+# import ollama  # Uncomment after: pip install ollama
+import google.genai as genai
+from IPython.display import Markdown, display
+
+# ── Load environment variables ──────────────────────────────────────────────
+load_dotenv()
+groq_api_key   = os.getenv("GROQ_API_KEY")
+google_api_key = os.getenv("GEMINI_API_KEY")
+
+print(f"Groq API Key:   {groq_api_key[:4] if groq_api_key else 'Not set'}")
+print(f"Gemini API Key: {google_api_key[:4] if google_api_key else 'Not set'}")
+
+# ── Initialize clients ───────────────────────────────────────────────────────
+groq_client   = Groq(api_key=groq_api_key)
+gemini_client = genai.Client(api_key=google_api_key)
+
+# ── Helper: print for both terminal and notebook ─────────────────────────────
+def show(text):
+    print(text)           # terminal
+    display(Markdown(text))  # notebook
+
+# ── Step 1: Generate a challenging question ──────────────────────────────────
+request  = "Please come up with a challenging, nuanced question that I can ask a number of LLMs to evaluate their intelligence. "
+request += "Answer only with the question, no explanation."
+messages = [{"role": "user", "content": request}]
+
+response = groq_client.chat.completions.create(
+    model="openai/gpt-oss-120b",
+    messages=messages,
+)
+question = response.choices[0].message.content
+print("Question:", question)
+
+# ── Step 2: Each competitor answers the question ─────────────────────────────
+competitors = []
+answers     = []
+messages    = [{"role": "user", "content": question}]
+
+# --- Groq models (cloud, free) — all current as of June 2026 ---
+groq_models = [
+    "openai/gpt-oss-120b",              # OpenAI OSS — most capable on Groq
+    "openai/gpt-oss-20b",               # OpenAI OSS — faster/lighter
+    "qwen/qwen3.6-27b",                 # Qwen — strong reasoning
+    "meta-llama/llama-3.1-8b-instant",  # Llama — fast
+]
+
+for model_name in groq_models:
+    try:
+        response = groq_client.chat.completions.create(
+            model=model_name,
+            messages=messages,
+        )
+        answer = response.choices[0].message.content
+        competitors.append(f"groq/{model_name}")
+        answers.append(answer)
+        print(f"\n{'='*50}")
+        print(f"Model: {model_name} (Groq)")
+        print(f"{'='*50}")
+        show(answer)
+    except Exception as e:
+        print(f"Groq model '{model_name}' failed: {e}")
+
+# --- Gemini (cloud, free tier) ---
+try:
+    response = gemini_client.models.generate_content(
+        model="gemini-2.0-flash",
+        contents=question,
+    )
+    answer = response.text
+    competitors.append("google/gemini-2.0-flash")
+    answers.append(answer)
+    print(f"\n{'='*50}")
+    print(f"Model: gemini-2.0-flash (Google)")
+    print(f"{'='*50}")
+    show(answer)
+except Exception as e:
+    print(f"Gemini failed (rate limit — wait 1 min and retry): {e}")
+
+# --- Ollama models (local, fully free) ---
+# Uncomment after: pip install ollama
+# ollama_models = ["llama3.2"]
+# for model_name in ollama_models:
+#     try:
+#         response = ollama.chat(model=model_name, messages=messages)
+#         answer = response["message"]["content"]
+#         competitors.append(f"ollama/{model_name}")
+#         answers.append(answer)
+#         print(f"\n{'='*50}")
+#         print(f"Model: {model_name} (Ollama - Local)")
+#         print(f"{'='*50}")
+#         show(answer)
+#     except Exception as e:
+#         print(f"Ollama model '{model_name}' failed: {e}")
+
+# ── Step 3: Judge the answers ────────────────────────────────────────────────
+judge_prompt  = "You are an expert judge evaluating LLM responses.\n\n"
+judge_prompt += f"The question was: {question}\n\n"
+
+for i, (competitor, answer) in enumerate(zip(competitors, answers)):
+    judge_prompt += f"## Answer {i+1} — {competitor}\n{answer}\n\n"
+
+judge_prompt += "Please rank these answers from best to worst, explaining your reasoning."
+
+judge_messages = [{"role": "user", "content": judge_prompt}]
+
+response = groq_client.chat.completions.create(
+    model="openai/gpt-oss-120b",
+    messages=judge_messages,
+)
+results = response.choices[0].message.content
+print("\n\n===== JUDGEMENT =====")
+show(results) 
+
+✅ Final Working Program — LLM Intelligence Evaluator
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Step 1  → Groq (gpt-oss-120b) generates a challenging question
+
+Step 2  → 4 Groq models + Gemini each answer the question
+          • openai/gpt-oss-120b    (most capable)
+          • openai/gpt-oss-20b     (faster/lighter)
+          • qwen/qwen3.6-27b       (strong reasoning)
+          • meta-llama/llama-3.1-8b-instant (fast)
+          • google/gemini-2.0-flash (free tier)
+          • ollama/llama3.2        (local, commented out)
+
+Step 3  → Groq (gpt-oss-120b) judges and ranks all answers
+
+Requirements in .env:
+  GROQ_API_KEY=gsk_...       ← free at console.groq.com
+  GEMINI_API_KEY=AIza...     ← free at aistudio.google.com
+
+Install:
+  pip install groq google-genai python-dotenv
+  pip install ollama          ← when ready for local models
+  
+--Understanding Agent vs Workflow patterns in LLM application design:
+--------------------------------------------------------------------
+By contrast --> Agents : 1. Open ended (keep going)
+                         2. Feedback loops (designn that allows for info to come back, process multiple time)
+						 3. No fixed path (through design pattern it's fluid and dynamic, but less predictive (Quantity, time?))
+						 
+              HUMAN
+                |
+                v
+         +---------------+
+         |   LLM Agent   |
+         +---------------+
+                |
+              Action
+                |
+                v
+         +---------------+
+         | Environment   |
+         +---------------+
+                |
+             Feedback
+                |
+                +------------------+
+                                   |
+                                   v
+                           +---------------+
+                           |   LLM Agent   |
+                           +---------------+
+
+Goal Achieved?
+      |
+     Yes
+      |
+      v
+    STOP
+
+-Risks of agent frameworks:
+--------------------------
+-Unpredictable path -> order in which task happen, unpredictable output, Monitor (what's going on with model traceability), Guardrails ensure your agents behave safely,
+consistently and within your intended boundaries.
+
+
+--Day 3:
+-------
+Orchestrating multiple LLMs: Comparing GPT-4o, claude, Gemini and DeepSeek.
+
+-Calling multiple LLMs: gpt-4o-mini, claude-3.7-sonnet, Gemini-2.0 flash, Deepseek AI, Deepseek v3, Deepseek R1, Groq: Open-source LLMs including LLama 3.0,
+                        ollama --> Local open source, LLMs including LLama3.2
+						The vellam leaderboard gives a comparison of costs and performance (https://www.vellum.ai/llm-leaderboard)
+
+-Comparing LLM APIs: Using OpenAI client library with claude, gemini and ++
+OpenAI doesn't require to specify model name, messages, max_token, but claude and anthropic does.
+
+
+from groq import Groq
+import os
+from dotenv import load_dotenv
+
+load_dotenv(override=True)
+
+client = Groq(api_key=os.getenv("GROQ_API_KEY"))
+
+requirement = """
+User should login with valid credentials
+"""
+
+response = client.chat.completions.create(
+    model="openai/gpt-oss-120b",
+    messages=[
+        {
+            "role": "user",
+            "content": f"""
+            Generate:
+            1. Test Cases
+            2. Appium Java Code by using UIAutomator2 for Android, set UIAutomator2Options
+            and use page object model design pattern. Don't forget to include necessary imports and setup code.
+            3. Integrate automated test cases with TestRail test cases
+            Requirement:
+            {requirement}
+            """
+        }
+    ]
+)
+
+print(response.choices[0].message.content)
+
+Note: OpenAI() --> When you create new python client instance. Google crated endpoint, exactly same format as OpenAI, server on base_url. Use OpenAI client library passs google key and tell
+                   OpenAi to use google endpoint in that format.
+				   
+# Use OpenAI client but point it to Google's endpoint
+client = OpenAI(
+    api_key=os.getenv("GEMINI_API_KEY"), base_url="https://generativelanguage.googleapis.com/v1beta/openai/"
+)
+				   
+# Groq via OpenAI client
+client = OpenAI(api_key=os.getenv("GROQ_API_KEY"), base_url="https://api.groq.com/openai/v1")
+
+# DeepSeek via OpenAI client
+client = OpenAI(api_key=os.getenv("DEEPSEEK_API_KEY"), base_url="https://api.deepseek.com/v1")
