@@ -853,6 +853,58 @@ response = client.chat.completions.create(
 
 print(response.choices[0].message.content)
 
+
+--Train models like ollama
+from groq import Groq
+import json
+import os
+from dotenv import load_dotenv
+
+load_dotenv()
+client = Groq(api_key=os.getenv("GROQ_API_KEY"))
+
+training_data = []
+
+topics = [
+    "Generate test cases for login",
+    "Write Appium code for logout",
+    "Create TestRail steps for signup",
+    "Generate test cases for payment",
+    "Write test cases for forgot password",
+    "Generate negative test cases for login",
+]
+
+for topic in topics:
+    response = client.chat.completions.create(
+        model="openai/gpt-oss-120b",
+        messages=[{"role": "user", "content": topic}]
+    )
+
+    training_data.append({
+        "messages": [
+            {"role": "user",      "content": topic},
+            {"role": "assistant", "content": response.choices[0].message.content}
+        ]
+    })
+    print(f"✅ Generated: {topic}")
+
+# Save as JSONL
+with open("training_data.jsonl", "w") as f:
+    for item in training_data:
+        f.write(json.dumps(item) + "\n")
+
+print(f"\nSaved {len(training_data)} examples to training_data.jsonl")
+
++----------------------------------+---------------------------+
+| Approach                         | Use Claude/Groq To...     |
++----------------------------------+---------------------------+
+| ❌ Train directly                | Not possible              |
+| ✅ Generate training data        | Yes — best use case       |
+| ✅ Generate Modelfile sys prompt | Yes — easy win            |
+| ✅ Generate RAG documents        | Yes — very effective      |
++----------------------------------+---------------------------+
+The smartest workflow is Claude/Groq generates data → Unsloth fine-tunes Llama → Ollama runs it locally.
+
 Note: OpenAI() --> When you create new python client instance. Google crated endpoint, exactly same format as OpenAI, server on base_url. Use OpenAI client library passs google key and tell
                    OpenAi to use google endpoint in that format.
 				   
@@ -866,3 +918,335 @@ client = OpenAI(api_key=os.getenv("GROQ_API_KEY"), base_url="https://api.groq.co
 
 # DeepSeek via OpenAI client
 client = OpenAI(api_key=os.getenv("DEEPSEEK_API_KEY"), base_url="https://api.deepseek.com/v1")
+
+--Day 4:
+-------
+Comparing Ai agent framework: simplicity vs power in LLM orchestration
+Agentic AI frameworks: No Framework --> Simply connect LLM''s directly using APIs
+                       MCP --> Model context protocol, not framework it is a protocol, open source, allow models to be connected.
+					   OpenAI Agents SDK --> lightweight, simple, clean and flexible
+					   Crew AI --> Low code angle, mostly configuration through yaml file.
+					   Langraph --> Heavy weight (Heavy ecosystem, project becomes langraph project)
+					   Autogen --> Heavy weight
+					   
+-Resources vs Tools: Two ways to enhance LLM capabilties in Agentic AI.
+-------------------
++------------------+----------------------+------------------------+
+| Aspect           | Resources            | Tools                  |
++------------------+----------------------+------------------------+
+| What it is       | Data/context given   | Actions LLM can        |
+|                  | to the LLM           | execute                |
++------------------+----------------------+------------------------+
+| Direction        | Input → LLM          | LLM → Output/Action    |
++------------------+----------------------+------------------------+
+| Examples         | PDFs, docs, database | Web search, API calls, |
+|                  | records, embeddings  | code execution, email  |
++------------------+----------------------+------------------------+
+| Purpose          | Give LLM knowledge   | Give LLM ability to    |
+|                  | it doesn't have      | do things              |
++------------------+----------------------+------------------------+
+| When used        | Before/during prompt | During agent reasoning |
++------------------+----------------------+------------------------+
+| Passive/Active   | Passive (read only)  | Active (does something)|
++------------------+----------------------+------------------------+
+| Example in MCP   | Resource endpoints   | Tool endpoints         |
++------------------+----------------------+------------------------+
+| Risk level       | Low (read only)      | High (can change state)|
++------------------+----------------------+------------------------+
+================================================================
+        RESOURCES vs TOOLS in Agentic AI
+================================================================
+
+RESOURCES
+---------
+- Provide LLM with relevant data to improve its expertise
+- Simply means: inject relevant data into the prompt
+- Technique: RAG (Retrieval Augmented Generation)
+  → Gets really smart at picking RELEVANT content
+  → Searches knowledge base, finds related chunks,
+    adds them to the prompt automatically
+
+Example:
+  User asks → "How do I test login on our app?"
+  RAG finds → your project docs, previous test cases
+  Injects   → relevant content into prompt
+  LLM gets  → context-aware answer
+
+
+TOOLS
+-----
+- Give LLM autonomy to carry out actions
+- LLM gets power to DO things, not just answer
+
+Examples:
+  → Query a database
+  → Message other LLMs
+  → Search the web
+  → Send emails
+  → Execute code
+  → Call APIs
+
+
+================================================================
+  Simple way to remember:
+
+  RESOURCES  =  What LLM KNOWS   (data injected into prompt)
+  TOOLS      =  What LLM DOES    (actions it can execute)
+================================================================
+
+
+# ================================================================
+#         APPIUM FRAMEWORK RESOURCE WITH RAG
+# ================================================================
+# pip install chromadb ollama sentence-transformers
+
+import chromadb
+import ollama
+
+# ── Step 1: Load your Appium documents ──────────────────────────
+docs = {
+    "login_tests": """
+        Test Case 1: Valid Login
+        Steps: Enter username, Enter password, Click Login
+        Expected: Dashboard displayed
+
+        Test Case 2: Invalid Password
+        Steps: Enter username, Enter wrong password, Click Login
+        Expected: Error message displayed
+    """,
+
+    "appium_template": """
+        @Test
+        public void testLogin() {
+            driver.findElement(By.id("username")).sendKeys("testuser");
+            driver.findElement(By.id("password")).sendKeys("password123");
+            driver.findElement(By.id("loginBtn")).click();
+            Assert.assertTrue(driver.findElement(By.id("dashboard")).isDisplayed());
+        }
+    """,
+
+    "locators": """
+        Login Screen:
+        username_field  = id: com.app:id/username
+        password_field  = id: com.app:id/password
+        login_button    = id: com.app:id/loginBtn
+        error_message   = id: com.app:id/errorMsg
+        dashboard       = id: com.app:id/dashboard
+    """,
+
+    "testrail_format": """
+        Step 1: Launch the application
+        Expected: App launches successfully
+
+        Step 2: Enter valid username
+        Expected: Username field accepts input
+
+        Step 3: Enter valid password
+        Expected: Password field accepts input (masked)
+
+        Step 4: Tap Login button
+        Expected: User is navigated to Dashboard
+    """
+}
+
+# ── Step 2: Store in ChromaDB (Vector Database) ─────────────────
+chroma_client = chromadb.Client()
+collection = chroma_client.create_collection("appium-resources")
+
+collection.add(
+    documents=list(docs.values()),
+    ids=list(docs.keys())
+)
+print("✅ Resources stored in vector DB")
+
+
+# ── Step 3: RAG Function ─────────────────────────────────────────
+def appium_agent(requirement):
+    # Find relevant resources
+    results = collection.query(
+        query_texts=[requirement],
+        n_results=2  # get top 2 relevant docs
+    )
+    context = "\n\n".join(results["documents"][0])
+
+    # Generate with context injected into prompt
+    response = ollama.chat(
+        model="llama3.2",
+        messages=[
+            {
+                "role": "system",
+                "content": f"""You are an Appium QA expert.
+                Use these resources to answer:
+
+                {context}
+
+                Always generate:
+                1. Test Cases
+                2. Appium Java Code
+                3. TestRail Steps
+                """
+            },
+            {
+                "role": "user",
+                "content": requirement
+            }
+        ]
+    )
+    return response["message"]["content"]
+
+
+# ── Step 4: Test it ──────────────────────────────────────────────
+requirement = "User should login with valid credentials"
+result = appium_agent(requirement)
+print(result)
+
+
+# ================================================================
+#   HOW IT WORKS
+#   Your Appium Docs → ChromaDB → User asks requirement
+#   → RAG finds relevant docs → Injects into prompt
+#   → Ollama generates context-aware output
+#
+#   WHAT TO ADD AS RESOURCES
+#   ✅ Your actual project locators  → most valuable
+#   ✅ Past test cases from project  → teaches format
+#   ✅ Appium helper methods         → reuses your code
+#   ✅ TestRail templates            → consistent format
+#   ✅ App screen descriptions       → better context
+#   ❌ Generic Appium docs           → too broad, less useful
+# ================================================================
+================================================================
+                    TOOL CALLING
+================================================================
+
+THEORY (How diagrams explain it)
+---------------------------------
+
+    +--------+
+    |  User  |
+    +--------+
+         |
+         v
+    +--------+
+    |  LLM   |
+    +--------+
+         |
+         | Tool Call
+         v
+    +-------------+
+    | Tool / API  |
+    | Database    |
+    +-------------+
+         |
+         | Result
+         v
+    +--------+
+    |  LLM   |
+    +--------+
+         |
+         v
+    +--------+
+    | Output |
+    +--------+
+
+
+ACTUAL IMPLEMENTATION (What really happens)
+--------------------------------------------
+
+    +--------+
+    |  User  |
+    +--------+
+         |
+         v
+    +------------------+
+    | Python App       |
+    | LangGraph        |
+    | CrewAI           |
+    | OpenAI SDK       |
+    +------------------+
+         |
+         v
+    +--------+
+    |  LLM   |
+    +--------+
+         |
+         | "Please call get_weather()"
+         | LLM does NOT call tool directly
+         | It just REQUESTS it
+         v
+    +------------------+
+    | Python App       |  ← intercepts the request
+    +------------------+
+         |
+         | Executes Code
+         v
+    +------------------+
+    | Tool / API       |
+    | Database         |
+    | Browser          |
+    +------------------+
+         |
+         | Result
+         v
+    +------------------+
+    | Python App       |  ← receives result
+    +------------------+
+         |
+         | Sends Result back to LLM
+         v
+    +--------+
+    |  LLM   |
+    +--------+
+         |
+         v
+    +------------------+
+    | Final Response   |
+    +------------------+
+
+
+================================================================
+  KEY INSIGHT:
+  LLM cannot call tools directly.
+  LLM only REQUESTS a tool call.
+  Python App is the one that ACTUALLY executes it.
+================================================================
+example:
+================================================================
+                 TOOL CALLING — KEY INSIGHT
+================================================================
+
+    LLM wants to do 'X'
+         |
+         v
+    LLM says: "I want to call get_weather(London)"
+    (LLM cannot do it itself — it just REQUESTS it)
+         |
+         v
+    Python App intercepts the request
+         |
+         v
+    Python App executes get_weather(London)  ← actual 'X' happens here
+         |
+         v
+    Python App calls LLM a SECOND TIME
+    with the result injected into the prompt
+         |
+         v
+    LLM now has the data and gives Final Answer
+
+
+================================================================
+  SIMPLE WAY TO REMEMBER:
+
+  Call 1 → LLM says  "I need X"
+              ↓
+           YOU do X
+              ↓
+  Call 2 → LLM gets result of X → gives final answer
+
+  LLM is called TWICE.
+  YOU (Python App) do the actual work in between.
+================================================================
+
+--Build a web chatbot, that acts like you using Gradio and OpenAI:
+-----------------------------------------------------------------
