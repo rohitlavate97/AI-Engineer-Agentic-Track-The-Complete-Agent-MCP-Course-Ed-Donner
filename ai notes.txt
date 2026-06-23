@@ -1248,5 +1248,663 @@ example:
   YOU (Python App) do the actual work in between.
 ================================================================
 
+================================================================
+          MULTI-MODEL PIPELINE
+          Generate (Free) → Evaluate (Paid)
+================================================================
+
+  User Requirement
+        |
+        v
+  Llama 3.2 (Ollama - FREE)     ← generates code
+  "Write Appium test for login"
+        |
+        v
+  Generated Code
+        |
+        v
+  Claude Haiku (CHEAP)          ← evaluates/fixes
+  "Review this code for quality"
+        |
+        v
+  Final Reviewed Code
+
+
+  SAVES TOKENS BECAUSE:
+  Claude only reads generated code (small input)
+  Not the full requirement + context + generation
+================================================================
+import ollama
+import anthropic
+import os
+from dotenv import load_dotenv
+
+load_dotenv()
+
+claude_client = anthropic.Anthropic(api_key=os.getenv("ANTHROPIC_API_KEY"))
+
+# ── Step 1: Llama generates code (FREE) ─────────────────────────
+def generate_with_llama(requirement):
+    response = ollama.chat(
+        model="llama3.2",
+        messages=[
+            {
+                "role": "system",
+                "content": "You are an Appium Java expert. Generate test code only."
+            },
+            {
+                "role": "user",
+                "content": f"Write Appium Java test for: {requirement}"
+            }
+        ]
+    )
+    return response["message"]["content"]
+
+
+# ── Step 2: Claude evaluates (PAID but minimal tokens) ──────────
+def evaluate_with_claude(generated_code):
+    response = claude_client.messages.create(
+        model="claude-haiku-4-5-20251001",  # cheapest Claude model
+        max_tokens=1000,
+        messages=[
+            {
+                "role": "user",
+                "content": f"""Review this Appium Java code and:
+                1. Fix any bugs
+                2. Improve quality
+                3. Add missing assertions
+                4. Rate it 1-10
+
+                Code:
+                {generated_code}
+                """
+            }
+        ]
+    )
+    return response.content[0].text
+
+
+# ── Step 3: Pipeline ─────────────────────────────────────────────
+def smart_agent(requirement):
+    print("🦙 Llama generating code...")
+    generated = generate_with_llama(requirement)
+    print(f"Generated:\n{generated}\n")
+
+    print("🤖 Claude evaluating...")
+    evaluated = evaluate_with_claude(generated)
+    print(f"Evaluated:\n{evaluated}\n")
+
+    return evaluated
+
+
+# ── Run it ───────────────────────────────────────────────────────
+result = smart_agent("User should login with valid credentials")
+print("✅ Final Result:\n", result)
+
+
+# ================================================================
+#   TOKEN SAVINGS EXAMPLE:
+#
+#   Without this approach:
+#   Claude input  = requirement + context + generate + evaluate
+#               = ~2000 tokens  → expensive
+#
+#   With this approach:
+#   Llama  input  = requirement          = ~50 tokens  (FREE)
+#   Claude input  = generated code only  = ~300 tokens (CHEAP)
+#
+#   Saving = ~85% fewer Claude tokens
+# ================================================================
+# Replace evaluate_with_claude() with Groq:
+from groq import Groq
+groq_client = Groq(api_key=os.getenv("GROQ_API_KEY"))
+
+def evaluate_with_groq(generated_code):
+    response = groq_client.chat.completions.create(
+        model="openai/gpt-oss-120b",
+        messages=[
+            {
+                "role": "user",
+                "content": f"Review and fix this Appium code:\n{generated_code}"
+            }
+        ]
+    )
+    return response.choices[0].message.content
+	
+	
+================================================================
+          TOKEN COST COMPARISON (Daily Estimate)
+================================================================
+
+ASSUMPTION: 50 test cases generated per day
+
+
+WITHOUT MULTI-MODEL (Claude does everything)
+--------------------------------------------
+Per request:
+  Input  = requirement + context + generation = ~2000 tokens
+  Output = generated + evaluated code         = ~1000 tokens
+  Total  = ~3000 tokens per request
+
+Daily (50 requests):
+  Total tokens = 50 × 3000       = 150,000 tokens
+
+Claude Sonnet pricing:
+  Input  = $3.00  per 1M tokens
+  Output = $15.00 per 1M tokens
+
+Daily Cost:
+  Input  = 100,000 × $3.00/1M   = $0.30
+  Output =  50,000 × $15.00/1M  = $0.75
+  ─────────────────────────────────────
+  Total                          = $1.05/day
+  Monthly                        = ~$31.50/month
+
+
+WITH MULTI-MODEL (Llama generates, Claude evaluates)
+-----------------------------------------------------
+Llama (Ollama) — FREE
+  Input  = requirement only      = ~50 tokens
+  Output = generated code        = ~500 tokens
+  Cost   = $0.00 (runs locally)
+
+Claude Haiku (cheapest) — for evaluation only
+  Input  = generated code only   = ~500 tokens
+  Output = reviewed code         = ~300 tokens
+  Total  = ~800 tokens per request
+
+Daily (50 requests):
+  Total tokens = 50 × 800        = 40,000 tokens
+
+Claude Haiku pricing:
+  Input  = $0.25  per 1M tokens
+  Output = $1.25  per 1M tokens
+
+Daily Cost:
+  Input  = 25,000 × $0.25/1M    = $0.006
+  Output = 15,000 × $1.25/1M    = $0.019
+  ─────────────────────────────────────
+  Total                          = $0.025/day
+  Monthly                        = ~$0.75/month
+
+
+================================================================
+  SAVINGS SUMMARY (50 test cases/day)
+================================================================
+
+  +-------------------+----------+----------+------------+
+  | Approach          | Daily    | Monthly  | Saving     |
+  +-------------------+----------+----------+------------+
+  | Claude only       | $1.05    | $31.50   | baseline   |
+  | Llama + Claude    | $0.025   | $0.75    | 97% saved  |
+  | Llama + Groq      | $0.00    | $0.00    | 100% saved |
+  +-------------------+----------+----------+------------+
+
+
+================================================================
+  SCALES WITH USAGE
+
+  +----------------+----------------+----------------+
+  | Daily Requests | Claude Only    | Llama + Claude |
+  +----------------+----------------+----------------+
+  | 10  requests   | $0.21/day      | $0.005/day     |
+  | 50  requests   | $1.05/day      | $0.025/day     |
+  | 100 requests   | $2.10/day      | $0.050/day     |
+  | 500 requests   | $10.50/day     | $0.250/day     |
+  +----------------+----------------+----------------+
+
+
+================================================================
+  BOTTOM LINE:
+
+  For learning/course   → Llama + Groq  = $0/month
+  For small team        → Llama + Haiku = ~$1/month
+  For production        → Llama + Haiku = ~$5-10/month
+  vs Claude only        → Sonnet alone  = ~$30-100/month
+
+  97% cost reduction with same or better quality
+  because specialized models do what they do best.
+================================================================
+
 --Build a web chatbot, that acts like you using Gradio and OpenAI:
 -----------------------------------------------------------------
+
+-Remember code below:
+def chat(message, history):
+    messages = [{"role": "system", "content": system_prompt}] + history + [{"role": "user", "content": message}]
+    response = openai.chat.completions.create(model="gpt-4o-mini", messages=messages)
+    return response.choices[0].message.content
+
+
+& "../.venv/Scripts/pip.exe" install openai anthropic groq gradio pypdf python-dotenv pydantic google-genai langchain langgraph ollama
+
+
+& "../.venv/Scripts/pip.exe" install --upgrade gradio
+## ================================================================
+#   AGENTIC AI — Personal Assistant with Evaluation & Rerun
+#   Uses: OpenAI (agent) + Gemini (evaluator) + Gradio (UI)
+# ================================================================
+# pip install openai gradio pypdf python-dotenv pydantic google-genai
+
+import os
+from dotenv import load_dotenv
+from openai import OpenAI
+from pypdf import PdfReader
+from pydantic import BaseModel
+import gradio as gr
+
+load_dotenv(override=True)
+
+# ── Initialize Clients ───────────────────────────────────────────
+openai = OpenAI()
+
+gemini = OpenAI(
+    api_key=os.getenv("GOOGLE_API_KEY"),
+    base_url="https://generativelanguage.googleapis.com/v1beta/openai/"
+)
+
+# ── Fix Paths (me folder is inside 1_foundations) ───────────────
+script_dir = os.path.dirname(os.path.abspath(__file__))
+me_dir     = os.path.join(script_dir, "..", "1_foundations", "me")
+
+# ── Load LinkedIn PDF ────────────────────────────────────────────
+reader   = PdfReader(os.path.join(me_dir, "linkedin.pdf"))
+linkedin = ""
+for page in reader.pages:
+    text = page.extract_text()
+    if text:
+        linkedin += text
+
+# ── Load Summary ─────────────────────────────────────────────────
+with open(os.path.join(me_dir, "summary.txt"), "r", encoding="utf-8") as f:
+    summary = f.read()
+
+# ── Setup ────────────────────────────────────────────────────────
+name = "Ed Donner"  # ← Change to your name
+
+# ── System Prompt (Agent) ────────────────────────────────────────
+system_prompt  = f"You are acting as {name}. You are answering questions on {name}'s website, "
+system_prompt += f"particularly questions related to {name}'s career, background, skills and experience. "
+system_prompt += f"Your responsibility is to represent {name} for interactions on the website as faithfully as possible. "
+system_prompt += f"You are given a summary of {name}'s background and LinkedIn profile which you can use to answer questions. "
+system_prompt += f"Be professional and engaging, as if talking to a potential client or future employer who came across the website. "
+system_prompt += f"If you don't know the answer, say so."
+system_prompt += f"\n\n## Summary:\n{summary}\n\n## LinkedIn Profile:\n{linkedin}\n\n"
+system_prompt += f"With this context, please chat with the user, always staying in character as {name}."
+
+# ── Evaluator System Prompt ──────────────────────────────────────
+evaluator_system_prompt  = f"You are an evaluator that decides whether a response to a question is acceptable. "
+evaluator_system_prompt += f"You are provided with a conversation between a User and an Agent. "
+evaluator_system_prompt += f"Your task is to decide whether the Agent's latest response is acceptable quality. "
+evaluator_system_prompt += f"The Agent is playing the role of {name} and is representing {name} on their website. "
+evaluator_system_prompt += f"The Agent has been instructed to be professional and engaging, as if talking to a potential client or future employer. "
+evaluator_system_prompt += f"The Agent has been provided with context on {name} in the form of their summary and LinkedIn details. Here's the information:"
+evaluator_system_prompt += f"\n\n## Summary:\n{summary}\n\n## LinkedIn Profile:\n{linkedin}\n\n"
+evaluator_system_prompt += "With this context, please evaluate the latest response, replying with whether the response is acceptable and your feedback."
+
+
+# ── Pydantic Model for Evaluation ────────────────────────────────
+class Evaluation(BaseModel):
+    is_acceptable: bool
+    feedback: str
+
+
+# ── Evaluator User Prompt ────────────────────────────────────────
+def evaluator_user_prompt(reply, message, history):
+    user_prompt  = f"Here's the conversation between the User and the Agent: \n\n{history}\n\n"
+    user_prompt += f"Here's the latest message from the User: \n\n{message}\n\n"
+    user_prompt += f"Here's the latest response from the Agent: \n\n{reply}\n\n"
+    user_prompt += "Please evaluate the response, replying with whether it is acceptable and your feedback."
+    return user_prompt
+
+
+# ── Evaluate Function ────────────────────────────────────────────
+def evaluate(reply, message, history) -> Evaluation:
+    messages = [{"role": "system", "content": evaluator_system_prompt}] + \
+               [{"role": "user",   "content": evaluator_user_prompt(reply, message, history)}]
+    response = gemini.beta.chat.completions.parse(
+        model="gemini-2.5-flash",
+        messages=messages,
+        response_format=Evaluation
+    )
+    return response.choices[0].message.parsed
+
+
+# ── Rerun Function (if evaluation fails) ─────────────────────────
+def rerun(reply, message, history, feedback):
+    updated_system_prompt  = system_prompt + "\n\n## Previous answer rejected\n"
+    updated_system_prompt += "You just tried to reply, but the quality control rejected your reply\n"
+    updated_system_prompt += f"## Your attempted answer:\n{reply}\n\n"
+    updated_system_prompt += f"## Reason for rejection:\n{feedback}\n\n"
+    messages = [{"role": "system", "content": updated_system_prompt}] + \
+               history + \
+               [{"role": "user", "content": message}]
+    response = openai.chat.completions.create(model="gpt-4o-mini", messages=messages)
+    return response.choices[0].message.content
+
+
+# ── Main Chat Function ───────────────────────────────────────────
+def chat(message, history):
+    # Convert history to messages format (old gradio returns list of tuples)
+    history_messages = []
+    for human, assistant in history:
+        history_messages.append({"role": "user",      "content": human})
+        history_messages.append({"role": "assistant", "content": assistant})
+
+    # Intentional bad response trigger for testing evaluator
+    if "patent" in message:
+        system = system_prompt + "\n\nEverything in your reply needs to be in pig latin - \
+              it is mandatory that you respond only and entirely in pig latin"
+    else:
+        system = system_prompt
+
+    messages = [{"role": "system", "content": system}] + \
+               history_messages + \
+               [{"role": "user", "content": message}]
+
+    response = openai.chat.completions.create(model="gpt-4o-mini", messages=messages)
+    reply = response.choices[0].message.content
+
+    # Evaluate the response
+    evaluation = evaluate(reply, message, history_messages)
+
+    if evaluation.is_acceptable:
+        print("✅ Passed evaluation - returning reply")
+    else:
+        print("❌ Failed evaluation - retrying")
+        print(f"Feedback: {evaluation.feedback}")
+        reply = rerun(reply, message, history_messages, evaluation.feedback)
+
+    return reply
+
+
+# ── Launch Gradio UI ─────────────────────────────────────────────
+gr.ChatInterface(chat).launch()
+
+
+# ================================================================
+#   HOW IT WORKS
+#
+#   User asks question
+#         ↓
+#   OpenAI gpt-4o-mini generates reply    (Agent)
+#         ↓
+#   Gemini 2.5-flash evaluates reply      (Evaluator)
+#         ↓
+#   is_acceptable = True  → return reply
+#   is_acceptable = False → rerun with feedback → return new reply
+#
+#   FOLDER STRUCTURE:
+#   agents/
+#   ├── 1_foundations/
+#   │   └── me/
+#   │       ├── linkedin.pdf   ← your LinkedIn PDF
+#   │       └── summary.txt    ← your summary
+#   └── example/
+#       └── trial6.py          ← this script
+#
+#   .env file:
+#   OPENAI_API_KEY=sk-...
+#   GOOGLE_API_KEY=AIza...
+# ================================================================
+
+--Day 5:
+--------
+-Building your career alter ego: LLM Function calling with push alerts
+
+
+PUSHOVER_USER=_put the key that's on the top right of your Pushover home screen and probably starts with a u_  
+PUSHOVER_TOKEN=_put the key when you click into your new application called Agents (or whatever) and probably starts with an a_
+
+
+--Building ai assistant : Implementing tool for handling unknow question
+
+# ================================================================
+#   AGENTIC AI — Personal Assistant with Tool Calling
+#   Uses: Groq (agent) + Pushover (notifications) + Gradio (UI)
+# ================================================================
+# pip install openai groq gradio pypdf python-dotenv requests
+
+import os
+import json
+import requests
+from dotenv import load_dotenv
+from groq import Groq
+from pypdf import PdfReader
+import gradio as gr
+
+load_dotenv(override=True)
+
+# ── Initialize Clients ───────────────────────────────────────────
+# openai = OpenAI()  # ← No credits, using Groq instead
+groq_client = Groq(api_key=os.getenv("GROQ_API_KEY"))
+
+# ── Pushover Setup ───────────────────────────────────────────────
+pushover_user  = os.getenv("PUSHOVER_USER")
+pushover_token = os.getenv("PUSHOVER_TOKEN")
+pushover_url   = "https://api.pushover.net/1/messages.json"
+
+if pushover_user:
+    print(f"Pushover user found and starts with {pushover_user[0]}")
+else:
+    print("Pushover user not found")
+
+if pushover_token:
+    print(f"Pushover token found and starts with {pushover_token[0]}")
+else:
+    print("Pushover token not found")
+
+
+# ── Pushover Function ────────────────────────────────────────────
+def push(message):
+    print(f"Push: {message}")
+    if pushover_user and pushover_token:
+        payload = {"user": pushover_user, "token": pushover_token, "message": message}
+        requests.post(pushover_url, data=payload)
+
+
+# ── Tools (actual Python functions) ─────────────────────────────
+def record_user_details(email, name="Name not provided", notes="not provided"):
+    push(f"Recording interest from {name} with email {email} and notes {notes}")
+    return {"recorded": "ok"}
+
+def record_unknown_question(question):
+    push(f"Recording {question} asked that I couldn't answer")
+    return {"recorded": "ok"}
+
+
+# ── Tools JSON (for LLM) ─────────────────────────────────────────
+record_user_details_json = {
+    "name": "record_user_details",
+    "description": "Use this tool to record that a user is interested in being in touch and provided an email address",
+    "parameters": {
+        "type": "object",
+        "properties": {
+            "email": {
+                "type": "string",
+                "description": "The email address of this user"
+            },
+            "name": {
+                "type": "string",
+                "description": "The user's name, if they provided it"
+            },
+            "notes": {
+                "type": "string",
+                "description": "Any additional information about the conversation that's worth recording to give context"
+            }
+        },
+        "required": ["email"],
+        "additionalProperties": False
+    }
+}
+
+record_unknown_question_json = {
+    "name": "record_unknown_question",
+    "description": "Always use this tool to record any question that couldn't be answered as you didn't know the answer",
+    "parameters": {
+        "type": "object",
+        "properties": {
+            "question": {
+                "type": "string",
+                "description": "The question that couldn't be answered"
+            }
+        },
+        "required": ["question"],
+        "additionalProperties": False
+    }
+}
+
+tools = [
+    {"type": "function", "function": record_user_details_json},
+    {"type": "function", "function": record_unknown_question_json}
+]
+
+
+# ── Handle Tool Calls (elegant — no IF statement) ────────────────
+def handle_tool_calls(tool_calls):
+    results = []
+    for tool_call in tool_calls:
+        tool_name = tool_call.function.name
+        arguments = json.loads(tool_call.function.arguments)
+        print(f"Tool called: {tool_name}", flush=True)
+        tool   = globals().get(tool_name)
+        result = tool(**arguments) if tool else {}
+        results.append({
+            "role":         "tool",
+            "content":      json.dumps(result),
+            "tool_call_id": tool_call.id
+        })
+    return results
+
+
+# ── Fix Paths (me folder is inside 1_foundations) ───────────────
+script_dir = os.path.dirname(os.path.abspath(__file__))
+me_dir     = os.path.join(script_dir, "..", "1_foundations", "me")
+
+# ── Load LinkedIn PDF ────────────────────────────────────────────
+reader   = PdfReader(os.path.join(me_dir, "linkedin.pdf"))
+linkedin = ""
+for page in reader.pages:
+    text = page.extract_text()
+    if text:
+        linkedin += text
+
+# ── Load Summary ─────────────────────────────────────────────────
+with open(os.path.join(me_dir, "summary.txt"), "r", encoding="utf-8") as f:
+    summary = f.read()
+
+# ── Setup ────────────────────────────────────────────────────────
+name = "Rohit Lavate"  # ← Change to your name
+
+# ── System Prompt ────────────────────────────────────────────────
+system_prompt  = f"You are acting as {name}. You are answering questions on {name}'s website, "
+system_prompt += f"particularly questions related to {name}'s career, background, skills and experience. "
+system_prompt += f"Your responsibility is to represent {name} for interactions on the website as faithfully as possible. "
+system_prompt += f"You are given a summary of {name}'s background and LinkedIn profile which you can use to answer questions. "
+system_prompt += f"Be professional and engaging, as if talking to a potential client or future employer who came across the website. "
+system_prompt += f"If you don't know the answer to any question, use your record_unknown_question tool to record the question that you couldn't answer, even if it's about something trivial or unrelated to career. "
+system_prompt += f"If the user is engaging in discussion, try to steer them towards getting in touch via email; ask for their email and record it using your record_user_details tool. "
+system_prompt += f"\n\n## Summary:\n{summary}\n\n## LinkedIn Profile:\n{linkedin}\n\n"
+system_prompt += f"With this context, please chat with the user, always staying in character as {name}."
+
+
+# ── Main Chat Function ───────────────────────────────────────────
+def chat(message, history):
+    # Convert history to messages format
+    history_messages = []
+    for item in history:
+        if isinstance(item, dict):
+            history_messages.append({"role": item["role"], "content": item["content"]})
+        else:
+            human, assistant = item[0], item[1]
+            history_messages.append({"role": "user",      "content": human})
+            history_messages.append({"role": "assistant", "content": assistant})
+
+    messages = [{"role": "system", "content": system_prompt}] + \
+               history_messages + \
+               [{"role": "user", "content": message}]
+
+    done = False
+    while not done:
+        # Call LLM with tools
+        response = groq_client.chat.completions.create(
+            model="openai/gpt-oss-120b",  # free on Groq
+            messages=messages,
+            tools=tools
+        )
+
+        finish_reason = response.choices[0].finish_reason
+
+        # If LLM wants to call a tool
+        if finish_reason == "tool_calls":
+            msg        = response.choices[0].message
+            tool_calls = msg.tool_calls
+            results    = handle_tool_calls(tool_calls)
+            messages.append(msg)
+            messages.extend(results)
+        else:
+            done = True
+
+    return response.choices[0].message.content
+
+
+# ── Launch Gradio UI ─────────────────────────────────────────────
+gr.ChatInterface(chat).launch()
+
+
+# ================================================================
+#   HOW IT WORKS
+#
+#   User chats
+#         ↓
+#   Groq generates reply OR requests tool call
+#         ↓
+#   Tool call? → handle_tool_calls() executes it
+#              → sends Pushover notification to phone
+#              → result sent back to LLM
+#              → LLM generates final reply
+#         ↓
+#   No tool call? → return reply directly
+#
+#   TOOLS:
+#   record_user_details   → saves email + sends push notification
+#   record_unknown_question → saves question + sends push notification
+#
+#   FOLDER STRUCTURE:
+#   agents/
+#   ├── 1_foundations/
+#   │   └── me/
+#   │       ├── linkedin.pdf   ← your LinkedIn PDF
+#   │       └── summary.txt    ← your summary
+#   └── example/
+#       └── trial7.py          ← this script
+#
+#   .env file:
+#   GROQ_API_KEY=gsk_...
+#   PUSHOVER_USER=u...
+#   PUSHOVER_TOKEN=a...
+# ================================================================
+
+--Creating and diploying an AI agent: From chat loop to hugging face spaces:
+put this code in app.py
+%cd folder
+%uv run app.py   --> You will get localhost link.
+To deploy -> visit --> https://huggingface.co and setup account
+cd folder --> %gradio deploy
+
+--Deploying Career conversation chatbots to Gradio:
+---------------------------------------------------
+%gradio deploy    -> creates new spaces repo in folder
+                     title for app --> career conversion
+					 Enter gradio app title --> app.py
+					 Enter spaces hardware --> cpu-basics
+					 Any spaces secrets : y
+					 Enter secret name: OPENAI_API_KEY   ......
+					 crate github action to automatically update space on  --> 'git push' :n
+
+-Evolving Agent Definition:
+     AI Systems that can do work for you independantly (Sam altman)
+	 AI System where an LLM controls the workflow
+	 An agent runs tools in a loop to achieve a goal.
+	 
+Assignment: 5_Extra.ipynb
