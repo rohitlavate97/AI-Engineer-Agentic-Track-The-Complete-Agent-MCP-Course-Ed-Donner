@@ -1,18 +1,26 @@
 import asyncio
 
 async def do_some_processing():
+    print("Task 1 Started")
     await asyncio.sleep(3)
-    return "Task 1 Done"
+    print("Task 1 Completed")
+    return "Done"
 
 async def do_other_processing():
-    await asyncio.sleep(2)
-    return "Task 2 Done"
+    print("Task 2 Started")
+    await asyncio.sleep(5)
+    print("Task 2 Completed")
+    return "Done 2"
 
 async def do_yet_more_processing():
-    await asyncio.sleep(1)
-    return "Task 3 Done"
+    print("Task 3 Started")
+    await asyncio.sleep(7)
+    print("Task 3 Completed")
+    return "Done 3"
 
 async def main():
+    print("Starting gather...")
+
     results = await asyncio.gather(
         do_some_processing(),
         do_other_processing(),

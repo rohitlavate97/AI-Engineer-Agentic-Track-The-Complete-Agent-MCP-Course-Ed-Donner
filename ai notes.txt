@@ -2006,3 +2006,146 @@ Note: Event loop schedules all 3 --> As soon as one blocking other starts.
      3. Call Runner.run() to run the agent
 
 --Introduction to Agent,Runner and Trace classes in OpenAI
+cd "C:\My Data\Projects\Ai\AI Engineer Agentic Track The Complete Agent & MCP Course"
+
+.\.venv\Scripts\activate
+
+pip install openai-agents
+
+pip show openai-agents
+
+
+--OpenAI Agents SDK Version
+from dotenv import load_dotenv
+from agents import Agent, Runner, trace
+
+# Load environment variables
+load_dotenv(override=True)
+
+# Create agent
+agent = Agent(
+    name="Jokester",
+    instructions="You are a joke teller",
+    model="gpt-4o-mini"
+)
+print(agent)                   -->we can see handoffs etc.
+# Run agent
+with trace("Telling a joke"):
+    result = await Runner.run(
+        agent,
+        "Tell a joke about Autonomous AI Agents"
+    )
+
+    print(result.final_output)
+
+
+OpenAI Agents SDK                Groq
+
+Agent()                     ->   System Prompt
+Runner.run()                ->   client.chat.completions.create()   --> ie to run
+trace()                     ->   print()/logging
+result.final_output         ->   response.choices[0].message.content
+
+--If you want an "Agent-like" wrapper with Groq
+from dotenv import load_dotenv
+from groq import Groq
+
+load_dotenv(override=True)
+
+class Agent:
+    def __init__(self, name, instructions, model):
+        self.name = name
+        self.instructions = instructions
+        self.model = model
+
+client = Groq()
+
+agent = Agent(
+    name="Jokester",
+    instructions="You are a joke teller",
+    model="llama-3.3-70b-versatile"
+)
+
+response = client.chat.completions.create(
+    model=agent.model,
+    messages=[
+        {"role": "system", "content": agent.instructions},
+        {"role": "user", "content": "Tell a joke about Autonomous AI Agents"}
+    ]
+)
+
+print(response.choices[0].message.content)
+
+--Vibe Coding: 5 Essential tips for efficient code generation with LLMs.
+  -Good Vibes == prompt well -> Ask for short answer and latest APIs for today's date
+  -vibe but verify -> ask 2 LLMs the same question
+  -step up the vibe -> ask to break down your request into independently testable steps.
+  -vibe and validate -> ask an LLM then get another LLM to check.
+  -vibe with variety -> ask for 3 solutions to the same problem, pick the best.
+  
+--Build AI sales agents, with SendGrid: Tools and Collaboration in Agent SDK ie Automated Sales Outreach
+ 3 things we will develop: A workflow of Agent calls
+                           An Agent that can use a tool
+						   An agent that can call on other agents ie tool vs handoff.
+Open 2_Lab2.ipynb   --> Complete sendgrid.com setting and get API key and verify mail
+
+cd "C:\My Data\Projects\Ai\AI Engineer Agentic Track The Complete Agent & MCP Course"
+
+.\.venv\Scripts\activate
+
+pip install sendgrid
+pip show sendgrid
+
+                 Sales Manager
+                       |
+        +--------------+--------------+
+        |              |              |
+        v              v              v
+ Professional     Engaging       Busy Agent
+ Sales Agent     Sales Agent     Sales Agent
+        |              |              |
+        +--------------+--------------+
+                       |
+                Select Best Email
+                       |
+                    Handoff
+                       |
+                       v
+                Email Manager
+                       |
+         +-------------+-------------+
+         |                           |
+         v                           v
+ Subject Writer            HTML Converter
+         |                           |
+         +-------------+-------------+
+                       |
+                       v
+               send_html_email
+                       |
+                       v
+                    SendGrid
+					
+					
+					
+                   QA Manager
+                        |
+      +-----------------+----------------+
+      |                 |                |
+      v                 v                v
+ UI Test Agent    API Test Agent   Security Agent
+      |                 |                |
+      +-----------------+----------------+
+                        |
+                 Select Best Cases
+                        |
+                     Handoff
+                        |
+                        v
+                Appium Generator
+                        |
+                        v
+                 TestRail Updater
+                        |
+                        v
+                    GitHub Push
