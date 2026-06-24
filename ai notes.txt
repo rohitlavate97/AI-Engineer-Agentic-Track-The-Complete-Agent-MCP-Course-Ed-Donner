@@ -1908,3 +1908,101 @@ cd folder --> %gradio deploy
 	 An agent runs tools in a loop to achieve a goal.
 	 
 Assignment: 5_Extra.ipynb
+
+
+
+--Week 2:
+--------
+-Understanding Async python: The foundation for OpenAI agents SDK:
+------------------------------------------------------------------
+asyncio
+-All the agents frameworks use asynchronous python
+-The short version:  All your methods and functions, start async. Anytime you call them, use await
+
+import asyncio
+
+async def do_some_processing() -> str:
+    # do some work
+    return "Done"
+
+async def main():
+    result = await do_some_processing()
+    print(result)
+
+asyncio.run(main())
+
+Note: It doesn't actually involve threads at operating system level, doesn't involve multi processing. So light weight way of writing code concurrently. lot of io bound waiting
+      in agent framework so we will use it.
+
+-The Long Version:
+ -Asyncio provides a lightweight alternation to threading or multiprocessing
+ -Functions defined with async def are called Coroutines, they're special functions that can be paused and resumed.
+ -Calling a Coroutine, doesn't execute if, immediately it returns a coroutine object
+ -To actually run a Coroutine, you must await it, which schedules it for execution within an event loop (one coroutine at a time, not like multi-processing)
+ -While Coroutine is waiting (eg: for I/O), the event loop can run other coroutine
+
+ -Richer Examples:
+import asyncio
+
+async def do_some_processing():
+    print("Processing started...")
+    await asyncio.sleep(2)  # Non-blocking wait
+    print("Processing completed...")
+    return "Done"
+
+async def main():
+    # Create coroutine object
+    coroutine = do_some_processing()
+    print(coroutine)
+
+    # Execute coroutine
+    result = await coroutine
+    print("Result:", result)
+
+asyncio.run(main())
+
+-multiple coroutines
+import asyncio
+
+async def do_some_processing():
+    await asyncio.sleep(3)
+    return "Task 1 Done"
+
+async def do_other_processing():
+    await asyncio.sleep(2)
+    return "Task 2 Done"
+
+async def do_yet_more_processing():
+    await asyncio.sleep(1)
+    return "Task 3 Done"
+
+async def main():
+    results = await asyncio.gather(
+        do_some_processing(),
+        do_other_processing(),
+        do_yet_more_processing()
+    )
+
+    print(results)
+
+asyncio.run(main())
+
+Note: Event loop schedules all 3 --> As soon as one blocking other starts.
+
+--OpenAI Agents SDK fundamentals: Creating, Tracing and Running Agents:
+   -Introducing OpenAI Agents SDK:
+    Lightweight and flexible
+    Stays out of the way
+    Makes common activities easy
+
+   -Every framework comes with terminologies:
+    Agents represent LLM
+    Handoffs represnt interactions
+    Guardrails represents controls
+
+    -Three Steps
+     1. Create an instance of Agent
+     2. Use with trace() to track the agent
+     3. Call Runner.run() to run the agent
+
+--Introduction to Agent,Runner and Trace classes in OpenAI
