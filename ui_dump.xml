@@ -1,0 +1,108 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<hierarchy rotation="0">
+    <node
+        index="0"
+        text=""
+        resource-id=""
+        class="android.widget.FrameLayout"
+        package="com.example.app"
+        content-desc=""
+        checkable="false"
+        checked="false"
+        clickable="false"
+        enabled="true"
+        focusable="false"
+        focused="false"
+        scrollable="false"
+        long-clickable="false"
+        password="false"
+        selected="false"
+        bounds="[0,0][1080,2400]">
+
+        <node
+            index="0"
+            text="Login"
+            resource-id="com.example.app:id/txtTitle"
+            class="android.widget.TextView"
+            package="com.example.app"
+            content-desc="Login Title"
+            clickable="false"
+            enabled="true"
+            bounds="[100,100][980,180]" />
+
+        <node
+            index="1"
+            text=""
+            resource-id="com.example.app:id/etEmail"
+            class="android.widget.EditText"
+            package="com.example.app"
+            content-desc="Email Address"
+            hint="Enter email"
+            clickable="true"
+            enabled="true"
+            focusable="true"
+            focused="false"
+            bounds="[60,250][1020,360]" />
+
+        <node
+            index="2"
+            text=""
+            resource-id="com.example.app:id/etPassword"
+            class="android.widget.EditText"
+            package="com.example.app"
+            content-desc="Password"
+            hint="Enter password"
+            password="true"
+            clickable="true"
+            enabled="true"
+            focusable="true"
+            focused="false"
+            bounds="[60,400][1020,510]" />
+
+        <node
+            index="3"
+            text="Remember Me"
+            resource-id="com.example.app:id/cbRemember"
+            class="android.widget.CheckBox"
+            package="com.example.app"
+            content-desc="Remember Me Checkbox"
+            clickable="true"
+            enabled="true"
+            checked="false"
+            bounds="[60,560][500,640]" />
+
+        <node
+            index="4"
+            text="Forgot Password?"
+            resource-id="com.example.app:id/txtForgotPassword"
+            class="android.widget.TextView"
+            package="com.example.app"
+            content-desc="Forgot Password"
+            clickable="true"
+            enabled="true"
+            bounds="[650,560][1020,640]" />
+
+        <node
+            index="5"
+            text="Login"
+            resource-id="com.example.app:id/btnLogin"
+            class="android.widget.Button"
+            package="com.example.app"
+            content-desc="Login Button"
+            clickable="true"
+            enabled="true"
+            bounds="[60,720][1020,840]" />
+
+        <node
+            index="6"
+            text="Sign Up"
+            resource-id="com.example.app:id/btnSignup"
+            class="android.widget.Button"
+            package="com.example.app"
+            content-desc="Sign Up Button"
+            clickable="true"
+            enabled="true"
+            bounds="[60,900][1020,1020]" />
+
+    </node>
+</hierarchy>
